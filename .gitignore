@@ -1,0 +1,95 @@
+# Keep the plugin manifests and marketplace metadata tracked:
+# .agents/, .claude-plugin/, plugins/**/.codex-plugin/, and plugins/**/.mcp.json
+
+# Operating-system and editor metadata
+.DS_Store
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials.json
+secrets.json
+*.credentials.json
+*.secrets.json
+
+# Python environments, bytecode, packaging, and test output
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+build/
+dist/
+
+# Optional JavaScript tooling
+node_modules/
+
+# Plugin runtime dependencies and local caches
+vendor/
+.cache/
+runtime/
+models/
+jobs/
+artifacts/
+captions/
+caption-results/
+request-gates/
+swift-module-cache/
+
+# Download, conversion, OCR, and STT intermediates
+downloads/
+media/
+frames/
+target_frames/
+audio/
+local_stt/
+ocr/
+transcripts/
+*.part
+*.ytdl
+*.vtt
+*.srt
+*.ass
+*.lrc
+*.tmp
+*.temp
+*.log
+*.pid
+*.sock
+
+# Local analysis-tool output
+graphify-out/
+.firecrawl/
+
+# Tool-specific local settings; distributable plugin metadata is not under these paths
+.codex/
+.claude/settings.local.json
+.claude/worktrees/

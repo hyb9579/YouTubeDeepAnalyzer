@@ -1,0 +1,33 @@
+{
+  "name": "youtube-deep-analyzer",
+  "version": "1.3.0",
+  "description": "Uses YouTube captions first, verifies only ambiguous phrases with selective local STT, and independently inspects unresolved visual meaning.",
+  "author": {
+    "name": "YouTube Deep Analyzer contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "youtube",
+    "captions",
+    "transcript",
+    "video-analysis"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "YouTube Deep Analyzer",
+    "shortDescription": "Caption-first YouTube analysis with selective STT.",
+    "longDescription": "Normalize YouTube captions as the primary transcript, then download audio and run local whisper.cpp only on short ranges where exact wording materially remains ambiguous. Independently derive necessary visual ranges and run local OCR before any image-model request.",
+    "developerName": "YouTube Deep Analyzer contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use captions first, verify only materially ambiguous phrases with selective local STT, and inspect visual evidence independently when needed.",
+      "Process this playlist in order with transcript-derived visual ranges and local OCR.",
+      "Preserve the creator's nuance while producing concise summaries and complete Markdown artifacts."
+    ]
+  }
+}

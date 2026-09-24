@@ -1,0 +1,20 @@
+{
+  "name": "youtube-deep-analyzer",
+  "interface": {
+    "displayName": "YouTube Deep Analyzer"
+  },
+  "plugins": [
+    {
+      "name": "youtube-deep-analyzer",
+      "source": {
+        "source": "local",
+        "path": "./plugins/youtube-deep-analyzer"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

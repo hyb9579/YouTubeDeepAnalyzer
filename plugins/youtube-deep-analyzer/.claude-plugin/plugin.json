@@ -1,0 +1,11 @@
+{
+  "name": "youtube-deep-analyzer",
+  "version": "1.3.0",
+  "description": "Caption-first YouTube analysis with selective local STT and targeted visual inspection.",
+  "author": {
+    "name": "YouTube Deep Analyzer contributors"
+  },
+  "license": "MIT",
+  "keywords": ["youtube", "captions", "transcript", "video-analysis"],
+  "mcpServers": "./.mcp.json"
+}

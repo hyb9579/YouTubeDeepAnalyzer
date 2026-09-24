@@ -1,0 +1,9 @@
+interface:
+  display_name: "YouTube Deep Analyzer"
+  short_description: "Caption-first analysis with selective local STT"
+  default_prompt: "Use $analyze-youtube-video to analyze captions first, verify only materially ambiguous wording with selective local STT, and inspect visual context independently when needed."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "youtube-media"
+      description: "Fetches normalized captions, selectively verifies ambiguous audio ranges, and independently inspects necessary visual ranges."
