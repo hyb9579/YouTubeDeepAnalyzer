@@ -118,39 +118,34 @@ Typical response order:
 
 ## How it works
 
-```text
-YouTube video or playlist URL
-              |
-              v
-   metadata probe + canonical order
-              |
-              v
-  caption acquisition and normalization
-              |
-              v
- model reads the complete caption transcript
-              |
-       +------+-----------------------+
-       |                              |
-       v                              v
-exact wording unclear?        screen context required?
-   | no      | yes                | no      | yes
-   |         v                    |         v
-   |   smallest audio range       |   smallest video range
-   |         |                    |         |
-   |   local whisper.cpp STT      |   local change filtering
-   |                              |         |
-   |                              |   local OCR where available
-   |                              |         |
-   |                              |   unresolved frames only
-   +---------------+--------------+
-                   |
-                   v
- summary + structured explanation + Markdown transcript
-                   |
-                   v
-       temporary media job cleanup
+```mermaid
+flowchart TD
+    URL["YouTube video or playlist URL"] --> Probe["Probe metadata and preserve playlist order"]
+    Probe --> Captions["Fetch and normalize captions"]
+    Captions --> Review["Model reviews the complete caption transcript"]
+
+    Review --> Wording{"Exact wording still materially ambiguous?"}
+    Review --> Visual{"Screen context required?"}
+
+    Wording -->|No| Evidence["Combine captions and any additional evidence"]
+    Wording -->|Yes| Audio["Download audio source; decode only necessary ranges"]
+    Audio --> STT["Verify those ranges with local whisper.cpp STT"]
+    STT --> Evidence
+
+    Visual -->|No| Evidence
+    Visual -->|Yes| Video["Download video source; decode only necessary ranges"]
+    Video --> Filter["Filter visual changes and near duplicates"]
+    Filter --> OCR["Run local OCR where available"]
+    OCR --> Unresolved{"Visual meaning still unresolved?"}
+    Unresolved -->|No| Evidence
+    Unresolved -->|Yes| Frames["Return only necessary frames for model interpretation"]
+    Frames --> Evidence
+
+    Evidence --> Artifacts["Write summary, explanation, and Markdown transcript"]
+    Artifacts --> Cleanup["Clean up temporary media jobs"]
 ```
+
+The STT and visual branches are independent. Complete any required evidence checks before writing the artifacts. If no suitable captions are available, ask the user before starting full audio transcription or visual-only analysis.
 
 ### Videos
 
@@ -158,7 +153,7 @@ exact wording unclear?        screen context required?
 2. `youtube_prepare_transcript_bundle` fetches and normalizes one caption track without downloading audio or video.
 3. The model reads the complete normalized transcript and identifies unresolved lexical or visual questions.
 4. `youtube_verify_caption_ranges` may download audio and run local STT on bounded ranges only when an exact word materially changes the explanation.
-5. `youtube_prepare_visual_ranges` may download bounded video ranges, filter visually redundant candidates, and run local OCR.
+5. `youtube_prepare_visual_ranges` may download the video source, decode only the requested ranges, filter visually redundant candidates, and run local OCR.
 6. Only still-unresolved selected frames are returned to the model for image interpretation.
 7. The plugin writes the requested Markdown artifacts before deleting temporary media.
 
