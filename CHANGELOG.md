@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1 - 2026-10-11
+
+- Fixed Claude Code MCP startup from unrelated session directories by using the installed plugin root in the Claude manifest.
+- Preserved Codex startup relative to its installed plugin directory.
+- Added host-specific startup regression tests and MCP initialization checks in CI.
+- Documented upgrading from 1.3.0 without editing installation caches.
+
 ## 1.3.0 - 2026-08-23
 
 - Added GitHub-ready Codex and Claude Code marketplace catalogs.

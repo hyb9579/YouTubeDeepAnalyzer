@@ -64,6 +64,15 @@ For a full checkout, omit the two `--sparse` options. See the official [OpenAI p
 
 Start a new Claude Code session after installation. If you updated an existing installation, reload or reinstall the plugin before starting the new session.
 
+To receive the MCP startup fix in version 1.3.1, refresh the marketplace and update the installed plugin:
+
+```sh
+claude plugin marketplace update youtube-deep-analyzer
+claude plugin update youtube-deep-analyzer@youtube-deep-analyzer
+```
+
+Then restart Claude Code and start a new session. Editing an existing installation cache is not required.
+
 ### Local checkout
 
 From a cloned copy, Codex can use the repository root as a local marketplace:
@@ -228,6 +237,12 @@ No YouTube, OpenAI, or Anthropic API key is required by the plugin itself.
 
 ## Troubleshooting
 
+### Claude reports CONNECTION_CLOSED before the server starts
+
+Version 1.3.0 could resolve the launcher to `./scripts/start_mcp.sh` in the session working directory. A stderr message saying that file does not exist indicates a launch-path failure before Python starts. Update to 1.3.1 using the commands above, restart Claude Code, and retry in a new session.
+
+The shared `.mcp.json` launches relative to the installed plugin directory for Codex. The Claude manifest overrides that server with `${CLAUDE_PLUGIN_ROOT}/scripts/start_mcp.sh`, so Claude sessions do not depend on their working directory.
+
 ### The plugin or `youtube-media` tools are missing
 
 Plugin tools are registered when a task or session starts. After installing or updating the plugin:
@@ -285,9 +300,14 @@ PYTHONPATH="$RUNTIME_PATH" python3 -m unittest discover \
   -s plugins/youtube-deep-analyzer/scripts \
   -p 'test_*.py'
 
-PYTHONPATH="$RUNTIME_PATH" \
-  python3 plugins/youtube-deep-analyzer/scripts/smoke_test_mcp.py
+PYTHONPATH="$RUNTIME_PATH" YOUTUBE_DEEP_ANALYZER_BASE_RUNTIME="$RUNTIME_PATH" \
+  python3 plugins/youtube-deep-analyzer/scripts/smoke_test_mcp.py --host codex
+
+PYTHONPATH="$RUNTIME_PATH" YOUTUBE_DEEP_ANALYZER_BASE_RUNTIME="$RUNTIME_PATH" \
+  python3 plugins/youtube-deep-analyzer/scripts/smoke_test_mcp.py --host claude
 ```
+
+The smoke checks initialize MCP and call runtime status tools. The Claude check models the documented plugin-root substitution and launches from an unrelated directory; it does not replace an end-to-end test in the Claude desktop app.
 
 Claude Code can additionally validate its marketplace schema:
 
