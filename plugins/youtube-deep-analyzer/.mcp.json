@@ -2,7 +2,7 @@
   "mcpServers": {
     "youtube-media": {
       "command": "sh",
-      "args": ["-c", "exec sh \"${CLAUDE_PLUGIN_ROOT:-.}/scripts/start_mcp.sh\""],
+      "args": ["./scripts/start_mcp.sh"],
       "cwd": ".",
       "startup_timeout_sec": 60,
       "tool_timeout_sec": 21600

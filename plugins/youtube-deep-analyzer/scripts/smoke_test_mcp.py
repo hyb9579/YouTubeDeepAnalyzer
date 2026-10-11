@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import os
@@ -39,49 +40,62 @@ EXPECTED_TOOLS = {
 }
 
 
-def _load_server_config() -> dict[str, Any]:
-    config_path = PLUGIN_ROOT / ".mcp.json"
-    config = json.loads(config_path.read_text(encoding="utf-8"))
-    servers = config.get("mcpServers") or config.get("mcp_servers") or config
+def _load_server_config(host: str = "codex", plugin_root: Path = PLUGIN_ROOT) -> dict[str, Any]:
+    config = json.loads((plugin_root / ".mcp.json").read_text(encoding="utf-8"))
+    servers = dict(config["mcpServers"])
+    if host == "claude":
+        manifest = json.loads((plugin_root / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        overrides = manifest.get("mcpServers")
+        if not isinstance(overrides, dict):
+            raise RuntimeError("Claude must declare an inline MCP launch configuration.")
+        servers.update(overrides)
+    elif host != "codex":
+        raise ValueError(f"Unsupported host: {host}")
     server = servers.get("youtube-media")
     if not isinstance(server, dict):
-        raise RuntimeError(".mcp.json does not define youtube-media.")
-    if server.get("cwd") != ".":
-        raise RuntimeError("youtube-media must set cwd to '.' so relative launcher paths resolve from the plugin root.")
+        raise RuntimeError("The plugin does not define youtube-media.")
     return server
 
 
-async def _run() -> None:
-    server = _load_server_config()
-    declared_cwd = (PLUGIN_ROOT / server["cwd"]).resolve()
-    if declared_cwd != PLUGIN_ROOT.resolve():
-        raise RuntimeError("youtube-media cwd escaped the plugin root.")
+def _server_parameters(
+    host: str, working_directory: Path, environment: dict[str, str], plugin_root: Path = PLUGIN_ROOT
+) -> StdioServerParameters:
+    server = _load_server_config(host, plugin_root)
+    arguments = list(server.get("args", []))
+    server_environment = dict(environment)
+    if host == "claude":
+        # Model the documented Claude args substitution, without invoking a shell.
+        if arguments != ["${CLAUDE_PLUGIN_ROOT}/scripts/start_mcp.sh"] or "cwd" in server:
+            raise RuntimeError("Claude must use the installed plugin root without a cwd fallback.")
+        arguments = [argument.replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_root)) for argument in arguments]
+        server_environment["CLAUDE_PLUGIN_ROOT"] = str(plugin_root)
+        cwd = working_directory
+    else:
+        if arguments != ["./scripts/start_mcp.sh"] or server.get("cwd") != ".":
+            raise RuntimeError("Codex must launch relative to the plugin root.")
+        cwd = plugin_root
+    return StdioServerParameters(command=server["command"], args=arguments, cwd=cwd, env=server_environment)
 
+
+async def _run(host: str = "codex") -> None:
     with tempfile.TemporaryDirectory(prefix="youtube-deep-analyzer-smoke-") as unrelated_cwd:
-        original_cwd = Path.cwd()
-        os.chdir(unrelated_cwd)
-        try:
-            server_environment = dict(os.environ)
-            server_environment.setdefault(
-                "YOUTUBE_DEEP_ANALYZER_CACHE", str(Path(unrelated_cwd) / "runtime-cache")
-            )
-            server_environment.setdefault("YOUTUBE_DEEP_ANALYZER_AUTO_UPDATE", "0")
-            parameters = StdioServerParameters(
-                command=server["command"],
-                args=list(server.get("args", [])),
-                cwd=declared_cwd,
-                env=server_environment,
-            )
-            async with stdio_client(parameters) as (read_stream, write_stream):
-                async with ClientSession(read_stream, write_stream) as session:
-                    initialized = await session.initialize()
-                    tools = {tool.name for tool in (await session.list_tools()).tools}
-                    runtime_call = await session.call_tool("youtube_runtime_status", {})
-                    runtime_payload = runtime_call.structured_content or {}
-                    stt_call = await session.call_tool("youtube_stt_runtime_status", {})
-                    stt_payload = stt_call.structured_content or {}
-        finally:
-            os.chdir(original_cwd)
+        server_environment = dict(os.environ)
+        server_environment.setdefault(
+            "YOUTUBE_DEEP_ANALYZER_CACHE", str(Path(unrelated_cwd) / "runtime-cache")
+        )
+        server_environment.setdefault("YOUTUBE_DEEP_ANALYZER_AUTO_UPDATE", "0")
+        parameters = _server_parameters(host, Path(unrelated_cwd), server_environment)
+        async with stdio_client(parameters) as (read_stream, write_stream):
+            async with ClientSession(read_stream, write_stream) as session:
+                initialized = await session.initialize()
+                tools = {tool.name for tool in (await session.list_tools()).tools}
+                runtime_call = await session.call_tool("youtube_runtime_status", {})
+                runtime_payload = runtime_call.structured_content or {}
+                stt_call = await session.call_tool("youtube_stt_runtime_status", {})
+                stt_payload = stt_call.structured_content or {}
+
+    if not runtime_payload.get("ok") or not stt_payload.get("ok"):
+        raise RuntimeError("The MCP server connected but a runtime status tool failed.")
 
     missing = EXPECTED_TOOLS - tools
     if missing:
@@ -96,7 +110,9 @@ async def _run() -> None:
                 "tools": sorted(tools),
                 "runtime_status": runtime_payload.get("result"),
                 "stt_runtime": stt_payload.get("result"),
-                "launched_from_unrelated_cwd": True,
+                "host": host,
+                "server_cwd_is_plugin_root": host == "codex",
+                "claude_started_from_unrelated_cwd": host == "claude",
             },
             ensure_ascii=False,
         )
@@ -104,4 +120,6 @@ async def _run() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(_run())
+    parser = argparse.ArgumentParser(description="Check the host-specific MCP launch and tool registration.")
+    parser.add_argument("--host", choices=("codex", "claude"), default="codex")
+    asyncio.run(_run(parser.parse_args().host))
