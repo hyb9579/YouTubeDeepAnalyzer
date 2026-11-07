@@ -1,5 +1,6 @@
 """Start the MCP server without a POSIX shell (bootstrap syntax supports Python 3.7+)."""
 import os
+import runpy
 from pathlib import Path
 import subprocess
 import sys
@@ -57,13 +58,27 @@ def prepare_environment(python, environment):
     return result
 
 
+def run_server(environment):
+    # Windows execve can close the transport before the replacement is ready.
+    # Run the server in this process so the host's stdio handles stay alive.
+    os.environ.clear()
+    os.environ.update(environment)
+    sys.path[:0] = [path for path in environment.get("PYTHONPATH", "").split(os.pathsep) if path]
+    server = str(ROOT / "scripts" / "mcp_server.py")
+    sys.argv = [server]
+    runpy.run_path(server, run_name="__main__")
+
+
 def main():
     try:
         python = select_python()
         if Path(python).resolve() != Path(sys.executable).resolve():
-            os.execve(python, [python, str(Path(__file__).resolve())], dict(os.environ))
+            command = [python, str(Path(__file__).resolve())]
+            if os.name == "nt":
+                return subprocess.call(command)
+            os.execve(python, command, dict(os.environ))
         environment = prepare_environment(python, os.environ)
-        os.execve(python, [python, str(ROOT / "scripts" / "mcp_server.py")], environment)
+        run_server(environment)
     except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
         print("youtube-deep-analyzer startup failed: {}".format(exc), file=sys.stderr)
         return 1

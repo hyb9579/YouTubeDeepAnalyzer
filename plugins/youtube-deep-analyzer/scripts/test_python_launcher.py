@@ -44,6 +44,16 @@ class PythonLauncherTests(unittest.TestCase):
         self.assertNotIn("YOUTUBE_DEEP_ANALYZER_RUNTIME_PATH", result)
         self.assertEqual(result["PYTHONPATH"], "base")
 
+    def test_server_runs_in_process_with_runtime_paths_and_original_stdio(self) -> None:
+        original_stdin, original_stdout = sys.stdin, sys.stdout
+        with patch.dict(os.environ, clear=True), patch.object(launcher.sys, "path", ["existing"]), patch.object(launcher.sys, "argv", []), patch.object(launcher.runpy, "run_path") as run:
+            launcher.run_server({"PYTHONPATH": os.pathsep.join(["overlay", "base"]), "MARKER": "value"})
+            self.assertEqual(launcher.sys.path[:2], ["overlay", "base"])
+            self.assertEqual(os.environ["MARKER"], "value")
+            self.assertIs(sys.stdin, original_stdin)
+            self.assertIs(sys.stdout, original_stdout)
+            run.assert_called_once_with(str(launcher.ROOT / "scripts/mcp_server.py"), run_name="__main__")
+
     def test_failed_bootstrap_is_not_started_as_a_server(self) -> None:
         with patch.object(launcher, "_helper", side_effect=RuntimeError("bootstrap failed")):
             with self.assertRaisesRegex(RuntimeError, "bootstrap failed"):
