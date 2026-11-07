@@ -305,6 +305,7 @@ def youtube_prepare_visual_ranges(
     ocr_mode: Literal["fast", "accurate"] = "accurate",
     ocr_languages: str = "ko-KR,en-US",
     allow_whole_video_visual_pass: bool = False,
+    ocr_engine: Literal["auto", "apple-vision", "tesseract", "none"] | None = None,
 ) -> dict[str, Any]:
     try:
         return {
@@ -319,6 +320,7 @@ def youtube_prepare_visual_ranges(
                 ocr_mode=ocr_mode,
                 ocr_languages=ocr_languages,
                 allow_whole_video_visual_pass=allow_whole_video_visual_pass,
+                ocr_engine=ocr_engine,
             ),
         }
     except Exception as exc:

@@ -22,6 +22,8 @@ from urllib.parse import parse_qs, urlparse
 import imageio_ffmpeg
 import yt_dlp
 
+from local_ocr import OCRError, find_tesseract, run_local_ocr, select_engine
+
 from local_stt import (
     LocalSTTError,
     stt_runtime_status as _stt_runtime_status,
@@ -1848,12 +1850,15 @@ def _targeted_job_id(
     max_candidates_per_range: int,
     max_height: int,
     ocr_mode: str,
+    ocr_engine: str = "auto",
+    ocr_languages: str = "ko-KR,en-US",
 ) -> str:
     payload = json.dumps(ranges, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(
         (
             f"{url}\ntranscript-targeted-visual\n{payload}\n{scan_interval_seconds:.3f}\n"
             f"{change_threshold:.4f}\n{max_candidates_per_range}\n{max_height}\n{ocr_mode}"
+            f"\nocr-v2\n{ocr_engine}\n{ocr_languages}\n{sys.platform}\n{find_tesseract()}"
         ).encode("utf-8")
     ).hexdigest()
     return digest[:20]
@@ -1937,111 +1942,10 @@ def _unit_tokens(text: str) -> set[str]:
     return {match.group(0).lower() for match in UNIT_PATTERN.finditer(text)}
 
 
-def _compile_apple_vision_ocr() -> Path:
-    swiftc = shutil.which("swiftc")
-    source = Path(__file__).resolve().parent / "apple_vision_ocr.swift"
-    if sys.platform != "darwin" or not swiftc or not source.is_file():
-        raise MediaPipelineError("Apple Vision OCR is unavailable on this host.")
-    binary_dir = cache_root() / "bin"
-    binary_dir.mkdir(parents=True, exist_ok=True)
-    module_cache = cache_root() / "swift-module-cache"
-    module_cache.mkdir(parents=True, exist_ok=True)
-    binary = binary_dir / "apple-vision-ocr"
-    if not binary.is_file() or binary.stat().st_mtime < source.stat().st_mtime:
-        result = subprocess.run(
-            [swiftc, "-module-cache-path", str(module_cache), str(source), "-o", str(binary)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=180,
-            check=False,
-        )
-        if result.returncode != 0:
-            raise MediaPipelineError(f"Apple Vision OCR compilation failed: {result.stderr.strip()[-2000:]}")
-    return binary
-
-
-def _run_apple_vision_ocr(
-    paths: list[Path], ocr_mode: str, languages: str
-) -> dict[str, dict[str, Any]]:
-    binary = _compile_apple_vision_ocr()
-    result = subprocess.run(
-        [str(binary), "--mode", ocr_mode, "--languages", languages, *map(str, paths)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        timeout=max(180, len(paths) * 3),
-        check=False,
-    )
-    if result.returncode != 0:
-        raise MediaPipelineError(f"Apple Vision OCR failed: {result.stderr.strip()[-2000:]}")
-    payload = json.loads(result.stdout)
-    return {str(item["path"]): item for item in payload}
-
-
-def _run_tesseract_ocr(paths: list[Path], languages: str) -> dict[str, dict[str, Any]]:
-    executable = shutil.which("tesseract")
-    if not executable:
-        raise MediaPipelineError("No supported local OCR engine is installed.")
-    language_codes = []
-    for language in languages.split(","):
-        language = language.strip().lower()
-        if language.startswith("ko"):
-            language_codes.append("kor")
-        elif language.startswith("en"):
-            language_codes.append("eng")
-    language_arg = "+".join(dict.fromkeys(language_codes)) or "eng"
-    outputs: dict[str, dict[str, Any]] = {}
-    for path in paths:
-        started = time.perf_counter()
-        result = subprocess.run(
-            [executable, str(path), "stdout", "-l", language_arg, "--psm", "6", "tsv"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=120,
-            check=False,
-        )
-        if result.returncode != 0:
-            outputs[str(path)] = {"path": str(path), "text": "", "average_confidence": 0.0, "error": result.stderr.strip()}
-            continue
-        words: list[str] = []
-        confidences: list[float] = []
-        for line in result.stdout.splitlines()[1:]:
-            columns = line.split("\t")
-            if len(columns) < 12 or not columns[11].strip():
-                continue
-            words.append(columns[11].strip())
-            try:
-                confidence = float(columns[10])
-            except ValueError:
-                confidence = -1
-            if confidence >= 0:
-                confidences.append(confidence / 100.0)
-        outputs[str(path)] = {
-            "path": str(path),
-            "text": " ".join(words),
-            "average_confidence": sum(confidences) / len(confidences) if confidences else 0.0,
-            "observation_count": len(words),
-            "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
-            "engine": "tesseract",
-        }
-    return outputs
-
-
 def _run_local_ocr(
-    paths: list[Path], ocr_mode: str, languages: str
+    paths: list[Path], ocr_mode: str, languages: str, engine: str | None = None
 ) -> tuple[str, dict[str, dict[str, Any]], str | None]:
-    if not paths:
-        return "none", {}, None
-    try:
-        if sys.platform == "darwin" and shutil.which("swiftc"):
-            return "apple-vision", _run_apple_vision_ocr(paths, ocr_mode, languages), None
-        if shutil.which("tesseract"):
-            return "tesseract", _run_tesseract_ocr(paths, languages), None
-        raise MediaPipelineError("No supported local OCR engine is installed.")
-    except Exception as exc:
-        return "unavailable", {}, str(exc)
+    return run_local_ocr(paths, ocr_mode, languages, cache_root(), engine)
 
 
 def _semantic_ocr_decision(
@@ -2124,6 +2028,7 @@ def prepare_visual_ranges(
     ocr_mode: str = "accurate",
     ocr_languages: str = "ko-KR,en-US",
     allow_whole_video_visual_pass: bool = False,
+    ocr_engine: str | None = None,
 ) -> dict[str, Any]:
     """Download video only after transcript review, then decode only requested ranges."""
     total_started = time.perf_counter()
@@ -2139,6 +2044,10 @@ def prepare_visual_ranges(
         raise MediaPipelineError("max_height must be one of 360, 480, 720, or 1080.")
     if ocr_mode not in {"fast", "accurate"}:
         raise MediaPipelineError("ocr_mode must be 'fast' or 'accurate'.")
+    try:
+        selected_ocr_engine = select_engine(ocr_engine)
+    except OCRError as exc:
+        raise MediaPipelineError(str(exc)) from exc
 
     probe_started = time.perf_counter()
     probe = probe_youtube(source_url, detailed_playlist=True, max_items=1, _correlation_id_value=correlation_id)
@@ -2149,7 +2058,7 @@ def prepare_visual_ranges(
     ranges = _normalize_visual_ranges(visual_ranges, duration, allow_whole_video_visual_pass)
     job_id = _targeted_job_id(
         source_url, ranges, visual_scan_interval_seconds, visual_change_threshold,
-        max_candidates_per_range, max_height, ocr_mode,
+        max_candidates_per_range, max_height, ocr_mode, selected_ocr_engine, ocr_languages,
     )
     job_dir = cache_root() / "jobs" / job_id
     manifest_path = job_dir / "manifest.json"
@@ -2254,7 +2163,7 @@ def prepare_visual_ranges(
 
     frame_paths = [(job_dir / frame["file"]).resolve() for frame in frames]
     ocr_started = time.perf_counter()
-    ocr_engine, ocr_results, ocr_error = _run_local_ocr(frame_paths, ocr_mode, ocr_languages)
+    ocr_engine, ocr_results, ocr_error = _run_local_ocr(frame_paths, ocr_mode, ocr_languages, selected_ocr_engine)
     ocr_elapsed = time.perf_counter() - ocr_started
     ranges_by_index = {item["range_index"]: item for item in ranges}
     for frame, path in zip(frames, frame_paths):
@@ -2298,6 +2207,8 @@ def prepare_visual_ranges(
         "local_ocr_resolved_count": sum(bool(frame["local_ocr"]["resolved_by_local_ocr"]) for frame in frames),
         "local_ocr": {
             "engine": ocr_engine,
+            "requested_engine": selected_ocr_engine,
+            "fallbacks": {str(path): value["fallback_reasons"] for path, value in ocr_results.items() if value.get("fallback_reasons")},
             "mode": ocr_mode,
             "languages": ocr_languages,
             "elapsed_seconds": round(ocr_elapsed, 4),
