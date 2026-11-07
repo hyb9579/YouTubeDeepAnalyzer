@@ -61,17 +61,19 @@ def _server_parameters(
     host: str, working_directory: Path, environment: dict[str, str], plugin_root: Path = PLUGIN_ROOT
 ) -> StdioServerParameters:
     server = _load_server_config(host, plugin_root)
+    if server.get("command") != "python3":
+        raise RuntimeError("The MCP launcher must use python3 without a shell.")
     arguments = list(server.get("args", []))
     server_environment = dict(environment)
     if host == "claude":
         # Model the documented Claude args substitution, without invoking a shell.
-        if arguments != ["${CLAUDE_PLUGIN_ROOT}/scripts/start_mcp.sh"] or "cwd" in server:
+        if arguments != ["${CLAUDE_PLUGIN_ROOT}/scripts/launch_mcp.py"] or "cwd" in server:
             raise RuntimeError("Claude must use the installed plugin root without a cwd fallback.")
         arguments = [argument.replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_root)) for argument in arguments]
         server_environment["CLAUDE_PLUGIN_ROOT"] = str(plugin_root)
         cwd = working_directory
     else:
-        if arguments != ["./scripts/start_mcp.sh"] or server.get("cwd") != ".":
+        if arguments != ["./scripts/launch_mcp.py"] or server.get("cwd") != ".":
             raise RuntimeError("Codex must launch relative to the plugin root.")
         cwd = plugin_root
     return StdioServerParameters(command=server["command"], args=arguments, cwd=cwd, env=server_environment)

@@ -58,6 +58,8 @@ def validate_plugin() -> None:
         fail("every runtime dependency must be exactly pinned")
     required = [
         "scripts/bootstrap_runtime.py",
+        "scripts/launch_mcp.py",
+        "scripts/local_ocr.py",
         "scripts/start_mcp.sh",
         "scripts/mcp_server.py",
         "scripts/media_pipeline.py",
