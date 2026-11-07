@@ -9,7 +9,7 @@
       "name": "youtube-deep-analyzer",
       "source": "./plugins/youtube-deep-analyzer",
       "description": "Caption-first YouTube analysis with selective local STT and targeted visual inspection.",
-      "version": "1.3.1",
+      "version": "1.4.0",
       "category": "productivity",
       "tags": ["youtube", "captions", "transcript", "video-analysis"]
     }

@@ -22,7 +22,7 @@ Before publishing:
 2. Replace generic contributor names with the publisher's public name if desired.
 3. Review `docs/PRIVACY.md` and `docs/TERMS.md`; obtain legal review before an official marketplace submission.
 4. Run the local validator, unit tests, Codex plugin validator, and Claude plugin validator.
-5. Push a signed tag such as `v1.3.1` and attach a source archive generated from that tag.
+5. Push a signed tag such as `v1.4.0` and attach a source archive generated from that tag.
 6. Test installation from a separate user account or clean machine before announcing the release.
 
 ## ChatGPT and Codex
@@ -52,7 +52,7 @@ Claude Code can run the bundled local MCP server directly. Users can install it 
 
 ## MCP startup compatibility
 
-Keep the shared `.mcp.json` relative to the installed plugin directory for Codex. Claude Code merges the inline `mcpServers` map from `.claude-plugin/plugin.json` over the default file. Its launcher uses `${CLAUDE_PLUGIN_ROOT}` directly in `args`, without `sh -c`, a shell default expression, or a session-dependent `cwd`.
+Keep the shared `.mcp.json` relative to the installed plugin directory for Codex. Claude Code merges the inline `mcpServers` map from `.claude-plugin/plugin.json` over the default file. Its launcher uses `${CLAUDE_PLUGIN_ROOT}/scripts/launch_mcp.py` directly in `args`, without a shell, a default expression, or a session-dependent `cwd`. Both registrations invoke `python3`, which must be available to the host on PATH.
 
 Run `scripts/smoke_test_mcp.py --host codex` and `--host claude` with the prepared Python runtime before release. Also test the installed release in a new Claude session and verify a `youtube_probe` call.
 

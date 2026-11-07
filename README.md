@@ -14,6 +14,7 @@ No API key is required. The repository does not operate a backend service and do
 - [How it works](#how-it-works)
 - [Evidence and resource policy](#evidence-and-resource-policy)
 - [Requirements and compatibility](#requirements-and-compatibility)
+- [OCR engines and setup](#ocr-engines-and-setup)
 - [Runtime downloads and local data](#runtime-downloads-and-local-data)
 - [Troubleshooting](#troubleshooting)
 - [Development and validation](#development-and-validation)
@@ -64,7 +65,7 @@ For a full checkout, omit the two `--sparse` options. See the official [OpenAI p
 
 Start a new Claude Code session after installation. If you updated an existing installation, reload or reinstall the plugin before starting the new session.
 
-To receive the MCP startup fix in version 1.3.1, refresh the marketplace and update the installed plugin:
+To receive cross-platform startup and selectable OCR in version 1.4.0, refresh the marketplace and update the installed plugin:
 
 ```sh
 claude plugin marketplace update youtube-deep-analyzer
@@ -186,10 +187,11 @@ The normal workflow does **not**:
 
 ### Required
 
-- Python 3.10 or newer;
+- Python 3.10 or newer, with a `python3` executable visible to the host application;
 - `pip` available to that Python installation;
-- a POSIX-compatible `sh` launcher;
 - network access to YouTube and, during first-run setup, PyPI.
+
+The MCP configuration invokes `python3 scripts/launch_mcp.py` directly on every platform; no POSIX shell or WSL is required. If your Windows Python installation only exposes `python` or `py`, enable its `python3` alias or change the `command` in both MCP configurations to the installed Python executable before installing the plugin. `YOUTUBE_DEEP_ANALYZER_PYTHON` can select another interpreter after the launcher starts; it cannot fix a missing initial command. Restart the host after changing PATH.
 
 FFmpeg is supplied through the pinned `imageio-ffmpeg` runtime dependency; a separate system FFmpeg installation is not normally required.
 
@@ -197,17 +199,61 @@ FFmpeg is supplied through the pinned `imageio-ffmpeg` runtime dependency; a sep
 
 - **Node.js:** recommended for current YouTube JavaScript challenge compatibility. The runtime reports whether it is available.
 - **`whisper-cli`:** required only when selective local STT is justified or the user explicitly requests a full local transcription.
-- **`swiftc` on macOS:** enables the Apple Vision OCR backend. Other platforms continue without that local OCR backend and may require selected-frame interpretation instead.
+- **`swiftc` on macOS:** enables Apple Vision OCR.
+- **Tesseract and language data:** enables local OCR on macOS, Linux, and native Windows. These are external optional dependencies, not bundled binaries.
 
 ### Platform matrix
 
 | Environment | Support | Notes |
 |---|---:|---|
-| macOS | Full | Apple Vision OCR; optional Homebrew `whisper-cpp` |
-| Linux | Partial | Caption and media paths work; install `whisper-cli` for selective STT; no Apple Vision OCR |
-| Windows via WSL | Partial | Uses the POSIX launcher; no Apple Vision OCR |
-| Native Windows | Not packaged | The current MCP launcher uses `sh` |
+| macOS | Supported | Apple Vision preferred; Tesseract fallback; Python launcher |
+| Linux | Supported | Tesseract OCR and Python launcher |
+| Native Windows | Supported | Tesseract OCR and Python launcher; ensure `python3` is on PATH |
+| Windows via WSL | Supported as Linux | Install Python, Tesseract, and optional STT inside WSL |
 | ChatGPT universal public directory | Requires additional cloud work | This repository ships a local `stdio` MCP server, not a public HTTPS MCP service |
+
+Platform support covers the launcher and local OCR paths with the prerequisites above. CI runs native Tesseract image recognition and MCP startup on macOS, Linux, and Windows. Apple Vision is tested on macOS only. This does not guarantee every YouTube download or optional STT setup on every machine.
+
+## OCR engines and setup
+
+Use the optional `ocr_engine` argument on `youtube_prepare_visual_ranges`, or set `YOUTUBE_DEEP_ANALYZER_OCR_ENGINE` in the MCP server's environment. A tool argument overrides the environment setting.
+
+| Value | Behavior |
+|---|---|
+| `auto` (default) | macOS tries Apple Vision, then retries only failed frames with Tesseract. Linux and Windows use Tesseract. |
+| `apple-vision` | Use only Apple Vision; requires macOS and `swiftc`. |
+| `tesseract` | Use only Tesseract, including on macOS. |
+| `none` | Skip local OCR; unresolved visual meaning may still require selected image input. |
+
+An explicitly selected engine does not silently switch to another engine. If OCR fails, captions remain the primary evidence and the normal selected-frame interpretation path stays available. The manifest records the requested engine, engines actually used, and per-frame fallback reasons. OCR confidence values from different engines are not calibrated against each other.
+
+### Install Tesseract
+
+macOS with Homebrew:
+
+```sh
+brew install tesseract tesseract-lang
+```
+
+Ubuntu or Debian, including WSL:
+
+```sh
+sudo apt-get update
+sudo apt-get install tesseract-ocr tesseract-ocr-eng tesseract-ocr-kor
+```
+
+On Windows, follow the [Tesseract project's Windows installation guidance](https://tesseract-ocr.github.io/tessdoc/Installation.html#windows), install English and Korean language data, and add the executable directory to PATH. Alternatively, set `YOUTUBE_DEEP_ANALYZER_TESSERACT` to the full executable path in the MCP environment. `TESSDATA_PREFIX` can select a custom language-data directory.
+
+Verify the executable and language data on any platform:
+
+```sh
+tesseract --version
+tesseract --list-langs
+```
+
+The default `ocr_languages="ko-KR,en-US"` requires both `kor` and `eng` for Tesseract. For English-only content, pass `ocr_languages="en-US"`. Missing language data is reported rather than silently dropping a language. Native Windows image paths containing spaces or non-ASCII characters are read by Python and streamed to Tesseract through stdin.
+
+Tesseract and its official language data use Apache-2.0. Redistribution obligations and alternatives are documented in [OCR licensing and alternatives](docs/OCR-LICENSING.md). No comparative accuracy or speed advantage is claimed without a representative benchmark.
 
 ## Runtime downloads and local data
 
@@ -234,9 +280,9 @@ No YouTube, OpenAI, or Anthropic API key is required by the plugin itself.
 
 ### Claude reports CONNECTION_CLOSED before the server starts
 
-Version 1.3.0 could resolve the launcher to `./scripts/start_mcp.sh` in the session working directory. A stderr message saying that file does not exist indicates a launch-path failure before Python starts. Update to 1.3.1 using the commands above, restart Claude Code, and retry in a new session.
+Version 1.3.0 could resolve the launcher to `./scripts/start_mcp.sh` in the session working directory. A stderr message saying that file does not exist indicates a launch-path failure before Python starts. Update to 1.4.0 or later using the commands above, restart Claude Code, and retry in a new session.
 
-The shared `.mcp.json` launches relative to the installed plugin directory for Codex. The Claude manifest overrides that server with `${CLAUDE_PLUGIN_ROOT}/scripts/start_mcp.sh`, so Claude sessions do not depend on their working directory.
+The shared `.mcp.json` launches `scripts/launch_mcp.py` relative to the installed plugin directory for Codex. The Claude manifest overrides that server with `${CLAUDE_PLUGIN_ROOT}/scripts/launch_mcp.py`, so Claude sessions do not depend on their working directory. Both use Python directly.
 
 ### The plugin or `youtube-media` tools are missing
 
@@ -269,7 +315,9 @@ The model is downloaded only on the first justified STT request.
 
 ### Local OCR is unavailable
 
-Apple Vision OCR requires macOS and `swiftc`. On unsupported systems, the plugin records that local OCR is unavailable and may return only the minimum unresolved frames for model interpretation.
+Check `ocr_engine`, the executable PATH, and `tesseract --list-langs`. Apple Vision requires macOS and `swiftc`; Tesseract works on all three desktop platforms when its requested language data is installed. In `auto` mode, Apple Vision failures retry Tesseract. Both engines failing leaves the targeted image-interpretation path available; it does not trigger full-video scanning.
+
+If the host reports that `python3` is missing, fix the launcher command/PATH first. That error occurs before OCR. The same Python environment must provide `pip`; the legacy shell launcher is only a compatibility wrapper.
 
 ### No suitable captions exist
 
@@ -284,7 +332,7 @@ python3 --version
 python3 scripts/validate_distribution.py
 ```
 
-Prepare an isolated test runtime without modifying the normal cache, then run the unit and MCP registration tests:
+On macOS/Linux, prepare an isolated test runtime without modifying the normal cache, then run the unit and MCP registration tests:
 
 ```sh
 RUNTIME_PATH="$(YOUTUBE_DEEP_ANALYZER_DEPENDENCY_CACHE=/tmp/yda-runtime-test \
@@ -302,7 +350,9 @@ PYTHONPATH="$RUNTIME_PATH" YOUTUBE_DEEP_ANALYZER_BASE_RUNTIME="$RUNTIME_PATH" \
   python3 plugins/youtube-deep-analyzer/scripts/smoke_test_mcp.py --host claude
 ```
 
-The smoke checks initialize MCP and call runtime status tools. The Claude check models the documented plugin-root substitution and launches from an unrelated directory; it does not replace an end-to-end test in the Claude desktop app.
+On Windows PowerShell, use the same Python scripts with `$env:PYTHONPATH` and `$env:YOUTUBE_DEEP_ANALYZER_BASE_RUNTIME` set to the path printed by `bootstrap_runtime.py --print-path`.
+
+The test suite includes native OCR checks on generated local images; Tesseract checks skip when the engine is absent locally. CI requires Tesseract and runs the full matrix. The smoke checks initialize MCP and call runtime status tools. The Claude check models the documented plugin-root substitution and launches from an unrelated directory; it does not replace an end-to-end test in the Claude desktop app.
 
 Claude Code can additionally validate its marketplace schema:
 

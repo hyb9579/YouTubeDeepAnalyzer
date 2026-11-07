@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 - 2026-11-07
+
+- Added selectable `auto`, `apple-vision`, `tesseract`, and `none` OCR backends with per-frame automatic fallback.
+- Added Tesseract language-data validation, executable override, and Unicode-safe image streaming.
+- Replaced shell-based MCP startup with a common Python launcher for macOS, Linux, and native Windows.
+- Added three-platform CI, native OCR image checks, and launcher regressions.
+- Documented OCR installation, external dependency licenses, and unbenchmarked alternatives.
+
 ## 1.3.1 - 2026-10-11
 
 - Fixed Claude Code MCP startup from unrelated session directories by using the installed plugin root in the Claude manifest.
