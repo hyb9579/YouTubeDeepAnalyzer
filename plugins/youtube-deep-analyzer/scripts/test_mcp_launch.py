@@ -20,7 +20,8 @@ class MCPLaunchTests(unittest.TestCase):
             parameters = _server_parameters("claude", Path(working_directory), {})
             self.assertEqual(Path(parameters.cwd), Path(working_directory))
         self.assertEqual(parameters.command, "python3")
-        self.assertEqual(parameters.args, [str(PLUGIN_ROOT / "scripts/launch_mcp.py")])
+        self.assertEqual(len(parameters.args), 1)
+        self.assertEqual(Path(parameters.args[0]), PLUGIN_ROOT / "scripts/launch_mcp.py")
         self.assertEqual(parameters.env["CLAUDE_PLUGIN_ROOT"], str(PLUGIN_ROOT))
 
     def test_claude_rejects_old_shell_fallback(self) -> None:
@@ -46,7 +47,8 @@ class MCPLaunchTests(unittest.TestCase):
                 (PLUGIN_ROOT / ".claude-plugin/plugin.json").read_text()
             )
             parameters = _server_parameters("claude", Path(temporary), {}, plugin)
-            self.assertEqual(parameters.args, [str(plugin / "scripts/launch_mcp.py")])
+            self.assertEqual(len(parameters.args), 1)
+            self.assertEqual(Path(parameters.args[0]), plugin / "scripts/launch_mcp.py")
             self.assertNotIn("cwd", _load_server_config("claude", plugin))
 
 
