@@ -7,5 +7,5 @@ for candidate in /opt/homebrew/bin/python3 /usr/local/bin/python3 python3; do
     exec "$candidate" "$SCRIPT_DIR/launch_mcp.py" "$@"
   fi
 done
-echo "youtube-deep-analyzer requires Python 3.10 or newer." >&2
+echo "youtube-deep-analyzer requires Python 3.11 or newer." >&2
 exit 1

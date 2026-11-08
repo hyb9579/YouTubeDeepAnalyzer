@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.1 - 2026-11-08
+
+- Aligned the documented and enforced Python minimum with the pinned dependencies: Python 3.11+.
+- Reject Python 3.10 before direct dependency bootstrap and retain older-interpreter discovery for the launcher only.
+- Added Python 3.11/3.12 CI coverage across all three desktop operating systems and minimum-version regressions.
+- Documented Node.js 22+ for YouTube JavaScript challenge support.
+
 ## 1.4.0 - 2026-11-07
 
 - Added selectable `auto`, `apple-vision`, `tesseract`, and `none` OCR backends with per-frame automatic fallback.

@@ -11,13 +11,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def select_python():
     override = os.environ.get("YOUTUBE_DEEP_ANALYZER_PYTHON", "").strip()
-    if not override and sys.version_info >= (3, 10):
+    if not override and sys.version_info >= (3, 11):
         return sys.executable
     candidates = [[override]] if override else [
         [sys.executable], ["/opt/homebrew/bin/python3"], ["/usr/local/bin/python3"],
         ["python3"], ["python"], ["py", "-3"],
     ]
-    probe = "import sys; sys.exit(1) if sys.version_info < (3, 10) else print(sys.executable)"
+    probe = "import sys; sys.exit(1) if sys.version_info < (3, 11) else print(sys.executable)"
     for candidate in candidates:
         try:
             result = subprocess.run(candidate + ["-c", probe], stdout=subprocess.PIPE,
@@ -26,7 +26,7 @@ def select_python():
                 return result.stdout.strip()
         except (OSError, subprocess.TimeoutExpired):
             continue
-    raise RuntimeError("Python 3.10 or newer is required. Install Python on PATH or set YOUTUBE_DEEP_ANALYZER_PYTHON.")
+    raise RuntimeError("Python 3.11 or newer is required. Install Python on PATH or set YOUTUBE_DEEP_ANALYZER_PYTHON.")
 
 
 def _helper(python, script, environment):

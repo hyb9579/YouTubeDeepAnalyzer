@@ -15,6 +15,26 @@ class PythonLauncherTests(unittest.TestCase):
             self.assertEqual(launcher.select_python(), sys.executable)
             run.assert_not_called()
 
+    def test_python_311_is_accepted_without_a_probe(self) -> None:
+        with patch.dict(os.environ, {"YOUTUBE_DEEP_ANALYZER_PYTHON": ""}), patch.object(launcher.sys, "version_info", (3, 11)), patch.object(launcher.subprocess, "run") as run:
+            self.assertEqual(launcher.select_python(), sys.executable)
+            run.assert_not_called()
+
+    def test_python_310_is_rejected_when_no_supported_candidate_exists(self) -> None:
+        unsupported = subprocess.CompletedProcess([], 1, "", "")
+        with patch.dict(os.environ, {"YOUTUBE_DEEP_ANALYZER_PYTHON": ""}), patch.object(launcher.sys, "version_info", (3, 10)), patch.object(launcher.subprocess, "run", return_value=unsupported) as run:
+            with self.assertRaisesRegex(RuntimeError, "Python 3.11"):
+                launcher.select_python()
+            self.assertTrue(run.called)
+            self.assertIn("(3, 11)", run.call_args.args[0][-1])
+
+    def test_direct_bootstrap_rejects_python_310_before_installation(self) -> None:
+        import bootstrap_runtime
+        with patch.object(bootstrap_runtime.sys, "version_info", (3, 10)), patch.object(bootstrap_runtime, "cache_root") as cache:
+            with self.assertRaisesRegex(bootstrap_runtime.BootstrapError, "Python 3.11"):
+                bootstrap_runtime.resolve_runtime()
+            cache.assert_not_called()
+
     def test_old_default_python_selects_supported_interpreter(self) -> None:
         failures = subprocess.CompletedProcess([], 1, "", "")
         success = subprocess.CompletedProcess([], 0, "/supported/python\n", "")
@@ -29,7 +49,7 @@ class PythonLauncherTests(unittest.TestCase):
 
     def test_unavailable_interpreter_reports_requirement(self) -> None:
         with patch.dict(os.environ, {"YOUTUBE_DEEP_ANALYZER_PYTHON": "missing"}), patch.object(launcher.subprocess, "run", side_effect=FileNotFoundError):
-            with self.assertRaisesRegex(RuntimeError, "Python 3.10"):
+            with self.assertRaisesRegex(RuntimeError, "Python 3.11"):
                 launcher.select_python()
 
     def test_environment_uses_platform_path_separator_and_overlay_precedence(self) -> None:

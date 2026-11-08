@@ -65,7 +65,7 @@ For a full checkout, omit the two `--sparse` options. See the official [OpenAI p
 
 Start a new Claude Code session after installation. If you updated an existing installation, reload or reinstall the plugin before starting the new session.
 
-To receive cross-platform startup and selectable OCR in version 1.4.0, refresh the marketplace and update the installed plugin:
+To receive cross-platform startup and selectable OCR in version 1.4.1, refresh the marketplace and update the installed plugin:
 
 ```sh
 claude plugin marketplace update youtube-deep-analyzer
@@ -187,9 +187,11 @@ The normal workflow does **not**:
 
 ### Required
 
-- Python 3.10 or newer, with a `python3` executable visible to the host application;
+- Python 3.11 or newer, with a `python3` executable visible to the host application;
 - `pip` available to that Python installation;
 - network access to YouTube and, during first-run setup, PyPI.
+
+The fixed `rpds-py` dependency requires Python 3.11+, and the verified `yt-dlp` update path also currently requires 3.11+. CI tests Python 3.11 and 3.12 on macOS, Linux, and Windows. The launcher may start under an older Python solely to locate a supported interpreter; that does not make the server runtime compatible with that older version.
 
 The MCP configuration invokes `python3 scripts/launch_mcp.py` directly on every platform; no POSIX shell or WSL is required. If your Windows Python installation only exposes `python` or `py`, enable its `python3` alias or change the `command` in both MCP configurations to the installed Python executable before installing the plugin. `YOUTUBE_DEEP_ANALYZER_PYTHON` can select another interpreter after the launcher starts; it cannot fix a missing initial command. Restart the host after changing PATH.
 
@@ -197,7 +199,7 @@ FFmpeg is supplied through the pinned `imageio-ffmpeg` runtime dependency; a sep
 
 ### Optional
 
-- **Node.js:** recommended for current YouTube JavaScript challenge compatibility. The runtime reports whether it is available.
+- **Node.js 22 or newer:** recommended for YouTube JavaScript challenges; a supported JavaScript runtime is required when YouTube presents those challenges. The runtime reports whether it is available.
 - **`whisper-cli`:** required only when selective local STT is justified or the user explicitly requests a full local transcription.
 - **`swiftc` on macOS:** enables Apple Vision OCR.
 - **Tesseract and language data:** enables local OCR on macOS, Linux, and native Windows. These are external optional dependencies, not bundled binaries.

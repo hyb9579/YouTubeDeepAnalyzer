@@ -22,7 +22,7 @@ Before publishing:
 2. Replace generic contributor names with the publisher's public name if desired.
 3. Review `docs/PRIVACY.md` and `docs/TERMS.md`; obtain legal review before an official marketplace submission.
 4. Run the local validator, unit tests, Codex plugin validator, and Claude plugin validator.
-5. Push a signed tag such as `v1.4.0` and attach a source archive generated from that tag.
+5. Push a signed tag such as `v1.4.1` and attach a source archive generated from that tag.
 6. Test installation from a separate user account or clean machine before announcing the release.
 
 ## ChatGPT and Codex

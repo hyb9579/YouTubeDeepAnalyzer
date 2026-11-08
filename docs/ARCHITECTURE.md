@@ -80,7 +80,7 @@ Remote wheels and the optional STT model are accepted only from configured HTTPS
 
 ## Cross-platform startup and OCR
 
-`launch_mcp.py` resolves Python and the pinned dependency runtime without a shell, then runs the MCP server in the same Python process to preserve the host-provided stdio handles on Windows as well as POSIX. Codex supplies the installed plugin directory as its working directory; Claude substitutes the installed root in the launcher argument. The initial Python command must be visible on the host PATH.
+`launch_mcp.py` requires Python 3.11+ for the server runtime and resolves the pinned dependency runtime without a shell, then runs the MCP server in the same Python process to preserve the host-provided stdio handles on Windows as well as POSIX. Codex supplies the installed plugin directory as its working directory; Claude substitutes the installed root in the launcher argument. The initial Python command must be visible on the host PATH.
 
 `local_ocr.py` provides Apple Vision and Tesseract behind one interface. Automatic selection retries only failed Apple Vision frames with Tesseract, including per-image failures. Explicit selection does not switch engines. Missing language data is an error; it is not an instruction to silently switch to English. OCR failure leaves selected-frame interpretation available.
 

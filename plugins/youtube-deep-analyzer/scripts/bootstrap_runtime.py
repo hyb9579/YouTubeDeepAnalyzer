@@ -122,6 +122,8 @@ def install_lock(root: Path) -> Iterator[None]:
 
 
 def resolve_runtime() -> Path:
+    if sys.version_info < (3, 11):
+        raise BootstrapError("Python 3.11 or newer is required by the pinned runtime dependencies.")
     override = os.environ.get("YOUTUBE_DEEP_ANALYZER_BASE_RUNTIME", "").strip()
     if override:
         selected = Path(override).expanduser().resolve()
