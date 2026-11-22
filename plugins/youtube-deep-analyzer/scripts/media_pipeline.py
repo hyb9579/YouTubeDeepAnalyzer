@@ -110,6 +110,7 @@ class MediaTransportError(MediaPipelineError):
             "language_attempts": language_attempts or [],
             "video_id": video_id,
             "yt_dlp_version": _yt_dlp_version(),
+            "cookies_used": cookies_enabled(),
             "request_correlation_id": correlation_id,
             "format_request": format_request,
             "selected_format": selected_format,
@@ -456,7 +457,45 @@ def runtime_update_status() -> dict[str, Any]:
         "last_check_utc": state.get("last_check_utc"),
         "source": state.get("source"),
         "error": state.get("error"),
+        "cookies_configured": cookies_enabled(),
     }
+
+
+COOKIES_ENV = "YOUTUBE_DEEP_ANALYZER_COOKIES"
+_cookie_permission_warned = False
+
+
+def _cookie_file() -> Path | None:
+    """Return the user-configured cookie file, or None when cookies are not configured.
+
+    The path and the cookie contents are never included in messages or results.
+    """
+    global _cookie_permission_warned
+    raw = os.environ.get(COOKIES_ENV, "").strip()
+    if not raw:
+        return None
+    path = Path(raw).expanduser()
+    if not path.is_file():
+        raise MediaPipelineError(
+            f"{COOKIES_ENV} is set but the file does not exist or is not a regular file."
+        )
+    if os.name == "posix" and not _cookie_permission_warned:
+        try:
+            broad = path.stat().st_mode & 0o077
+        except OSError:
+            broad = 0
+        if broad:
+            _cookie_permission_warned = True
+            print(
+                "youtube-deep-analyzer warning: cookie file permissions are broader than 600.",
+                file=sys.stderr,
+            )
+    return path
+
+
+def cookies_enabled() -> bool:
+    raw = os.environ.get(COOKIES_ENV, "").strip()
+    return bool(raw) and Path(raw).expanduser().is_file()
 
 
 def validate_youtube_url(url: str) -> str:
@@ -488,6 +527,9 @@ def _base_ydl_options() -> dict[str, Any]:
     node_path = shutil.which("node")
     if node_path:
         options["js_runtimes"] = {"node": {"path": node_path}}
+    cookie_file = _cookie_file()
+    if cookie_file is not None:
+        options["cookiefile"] = str(cookie_file)
     return options
 
 
@@ -598,6 +640,7 @@ def probe_youtube(
                 **request_diagnostics,
                 "request_correlation_id": correlation_id,
                 "yt_dlp_version": _yt_dlp_version(),
+            "cookies_used": cookies_enabled(),
                 "runtime_update": runtime_update_status(),
             },
         }
@@ -610,6 +653,7 @@ def probe_youtube(
             **request_diagnostics,
             "request_correlation_id": correlation_id,
             "yt_dlp_version": _yt_dlp_version(),
+            "cookies_used": cookies_enabled(),
             "runtime_update": runtime_update_status(),
         },
     }
@@ -777,6 +821,7 @@ def fetch_captions(
                     "transport_diagnostics": {
                         "request_correlation_id": correlation_id,
                         "yt_dlp_version": _yt_dlp_version(),
+            "cookies_used": cookies_enabled(),
                         "runtime_update": runtime_update_status(),
                         "requested_languages": languages,
                         "selected_languages": [candidate[0] for candidate in candidates],
@@ -1611,6 +1656,7 @@ def prepare_media(
             **request_diagnostics,
             "request_correlation_id": correlation_id,
             "yt_dlp_version": _yt_dlp_version(),
+            "cookies_used": cookies_enabled(),
             "runtime_update": runtime_update_status(),
             "format_request": format_request,
             "selected_format": _selected_format_diagnostics(info),
@@ -2190,6 +2236,7 @@ def prepare_visual_ranges(
             **request_diagnostics,
             "request_correlation_id": correlation_id,
             "yt_dlp_version": _yt_dlp_version(),
+            "cookies_used": cookies_enabled(),
             "runtime_update": runtime_update_status(),
             "format_request": format_request,
             "selected_format": _selected_format_diagnostics(info),

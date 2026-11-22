@@ -42,6 +42,10 @@ jobs:
           "C:\Program Files\Tesseract-OCR" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Validate distribution layout
         run: python3 scripts/validate_distribution.py
+      - name: Scan for browser cookie data
+        run: |
+          python3 scripts/check_no_cookies.py --tree
+          python3 -m unittest scripts/test_check_no_cookies.py
       - name: Install pinned runtime dependencies
         run: python3 -m pip install --requirement plugins/youtube-deep-analyzer/requirements.lock
       - name: Compile Python sources

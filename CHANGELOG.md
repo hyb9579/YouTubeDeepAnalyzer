@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added opt-in `YOUTUBE_DEEP_ANALYZER_COOKIES` support that passes a user-specified local cookie file to yt-dlp; results report only `cookies_used`, and paths and contents are never printed or cached.
+- Added `scripts/check_no_cookies.py` with `pre-commit`, `commit-msg`, and `pre-push` hooks plus a CI tree scan to block cookie files and pasted cookie values from git history.
+
 ## 1.4.1 - 2026-11-08
 
 - Aligned the documented and enforced Python minimum with the pinned dependencies: Python 3.11+.

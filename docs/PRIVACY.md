@@ -26,7 +26,7 @@ Dependencies, the verified `yt-dlp` overlay, and the optional STT model are cach
 
 ## Credentials and restricted content
 
-The plugin does not request or store YouTube credentials and does not implement cookie injection, login bypass, DRM bypass, paywall bypass, or restriction evasion.
+The plugin does not request or store YouTube credentials and does not implement login bypass, DRM bypass, paywall bypass, or restriction evasion. It uses no cookies by default. Only when the user explicitly sets `YOUTUBE_DEEP_ANALYZER_COOKIES` to a local cookie file does the MCP server pass that path to yt-dlp. The plugin never copies, caches, transmits elsewhere, or prints the path or the cookie contents; tool results report only whether cookies were used. yt-dlp sends those cookies to YouTube with its requests and may rewrite the file locally.
 
 ## Operator notice
 

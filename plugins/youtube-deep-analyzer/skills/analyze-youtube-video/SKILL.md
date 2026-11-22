@@ -22,7 +22,7 @@ Use the bundled `youtube-media` MCP tools. Captions are the default evidence spi
 - Do not infer that lexical ambiguity requires an image, or that visual ambiguity requires STT.
 - Do not identify speakers or analyze pitch, energy, pauses, speech rate, emphasis, emotion, laughter, music, or delivery.
 - Use local OCR before requesting any image.
-- Download only public YouTube media or content the user is authorized to access. Never bypass restrictions or supply credentials.
+- Download only public YouTube media or content the user is authorized to access. Never bypass restrictions or supply credentials. Never ask for, read, print, paste, or write cookie or credential values; a cookie file the user configured locally through `YOUTUBE_DEEP_ANALYZER_COOKIES` is used only by the MCP server.
 - Delete prepared media only after requested artifacts are written unless the user requests retention.
 
 ## Workflow

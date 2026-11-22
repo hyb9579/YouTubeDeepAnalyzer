@@ -6,4 +6,6 @@
 4. Run `python3 scripts/validate_distribution.py` and the full unit test suite.
 5. Keep both manifests and both marketplace catalogs synchronized.
 
+Enable the cookie leak hooks with `git config core.hooksPath .githooks` and never bypass them with `--no-verify`.
+
 Do not commit downloaded media, transcripts containing personal information, model files, dependency caches, cookies, credentials, or a local `vendor` directory.

@@ -198,6 +198,7 @@ def _validate_runtime(path: Path, expected_version: str) -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        env={key: value for key, value in os.environ.items() if key != "YOUTUBE_DEEP_ANALYZER_COOKIES"},
         timeout=20,
         check=False,
     )

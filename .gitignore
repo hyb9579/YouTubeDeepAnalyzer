@@ -25,6 +25,13 @@ credentials.json
 secrets.json
 *.credentials.json
 *.secrets.json
+# Browser cookies: never commit (content scanning in scripts/check_no_cookies.py is the real guard)
+*cookie*.txt
+*cookies*.json
+*cookie*.json
+*.cookies
+cookies
+cookies.sqlite*
 
 # Python environments, bytecode, packaging, and test output
 __pycache__/

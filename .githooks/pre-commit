@@ -1,0 +1,5 @@
+#!/bin/sh
+# Blocks browser cookie data from entering git history. Do not bypass with --no-verify.
+root=$(git rev-parse --show-toplevel) || exit 1
+command -v python3 >/dev/null 2>&1 || { echo "check_no_cookies: BLOCKED because python3 is unavailable." >&2; exit 1; }
+exec python3 "$root/scripts/check_no_cookies.py" --staged

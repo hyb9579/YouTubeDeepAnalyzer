@@ -303,7 +303,23 @@ YouTube has rate-limited the request. The transport layer honors `Retry-After` w
 
 ### Media fails with HTTP 403
 
-Metadata may succeed while the media CDN rejects the byte request. The plugin re-extracts the public media URL and retries once, then returns structured diagnostics. It does not add cookies, credentials, login bypasses, or restriction-evasion behavior. Updating `yt-dlp` may help compatibility, but a 403 is not always a version problem.
+Metadata may succeed while the media CDN rejects the byte request. The plugin re-extracts the public media URL and retries once, then returns structured diagnostics. It does not add cookies unless you explicitly configure a local cookie file (see below), and it never adds credentials, login bypasses, or restriction-evasion behavior. Updating `yt-dlp` may help compatibility, but a 403 is not always a version problem.
+
+### YouTube asks to sign in to confirm you're not a bot
+
+YouTube sometimes refuses requests from data-center or shared IP addresses with `Sign in to confirm you're not a bot`. The plugin uses **no cookies by default**. If you choose to, you can point the MCP server at a local Netscape-format cookie file that you exported yourself:
+
+```text
+YOUTUBE_DEEP_ANALYZER_COOKIES=~/.config/youtube-deep-analyzer/cookies.txt
+```
+
+Set it in the `env` of the `youtube-media` MCP server entry (Claude Code and Codex), then restart the host. A leading `~` is expanded by the plugin.
+
+- The value is passed only to yt-dlp's `cookiefile` option. It does not bypass login, age, regional, paywall, or DRM restrictions.
+- Results report only `cookies_used: true|false`. The plugin never copies, caches, or prints the path or the cookie contents. If the variable is set but the file is missing, every request fails with an error that does not include the path.
+- yt-dlp rewrites the cookie file when it exits. Keep the file **outside any git repository**, with `chmod 600` (the server warns when permissions are broader), and keep only `youtube.com` cookies in it.
+- Using account cookies for automated requests can get the account rate-limited or restricted. Prefer a dedicated browser profile, and sign that session out when you are done.
+- Never commit, paste, or share cookie values. See [Cookie leak protection](#cookie-leak-protection).
 
 ### Selective STT is unavailable
 
@@ -364,6 +380,16 @@ claude plugin validate .
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before changing transport, transcript, STT, OCR, or visual-filtering behavior.
 
+### Cookie leak protection
+
+`scripts/check_no_cookies.py` blocks browser cookie data from entering git history. It detects Netscape cookie files and headers, Google/YouTube auth cookie names followed by values (for example in pasted code, JSON, or `Cookie:` headers), browser JSON exports, cookie-like file names, and, when a local cookie file exists, any of its actual values pasted anywhere. Findings show only a location and rule; values are never printed. Enable the hooks once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hooks scan staged files (`pre-commit`), commit messages (`commit-msg`), and every outgoing commit, including ones whose cookie data was later deleted (`pre-push`). CI runs `--tree` as a backstop. Never bypass the hooks with `--no-verify`.
+
 ## Repository layout
 
 ```text
@@ -401,7 +427,7 @@ Installing from GitHub does not automatically submit the plugin to either vendor
 ## Safety, privacy, and limitations
 
 - Process only public videos or content you are authorized to access.
-- The plugin does not inject cookies or implement login, DRM, paywall, age, regional, or other restriction bypasses.
+- The plugin uses no cookies by default; it uses a local cookie file only when you explicitly set `YOUTUBE_DEEP_ANALYZER_COOKIES`, and never stores, copies, or prints it. It does not implement login, DRM, paywall, age, regional, or other restriction bypasses.
 - YouTube can change its delivery behavior or reject requests even when a video is public.
 - Captions and STT can contain errors. The final artifact records evidence sources, corrections, and unresolved uncertainty.
 - The repository publisher operates no backend and receives no processed content through this software.
